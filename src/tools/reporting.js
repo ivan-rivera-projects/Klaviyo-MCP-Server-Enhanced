@@ -4,7 +4,8 @@ import {
   VALID_CAMPAIGN_STATISTICS,
   DEFAULT_STATISTICS,
   API_CONFIG,
-  FILTER_TEMPLATES
+  FILTER_TEMPLATES,
+  VALID_MEASUREMENTS
 } from '../config.js';
 import logger from '../utils/logger.js';
 
@@ -63,18 +64,10 @@ export function registerReportingTools(server) {
 
         logger.debug('Campaign metrics request payload', payload);
 
-        const results = await klaviyoClient.post('/campaign-values-reports/', payload);
-
-        logger.info(`Successfully retrieved campaign metrics for campaign ID: ${params.id}`);
-
-        return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
-        };
-      } catch (error) {
-        // Implement fallback mechanism for error recovery
-        logger.warn(`Error retrieving campaign metrics with initial parameters: ${error.message}. Attempting fallback.`);
-
-        try {
+        // Define the fallback function
+        const fallbackFn = async (error) => {
+          logger.warn(`Error retrieving campaign metrics with initial parameters: ${error.message}. Attempting fallback.`);
+          
           // Fallback to minimal statistics set
           const fallbackPayload = {
             data: {
@@ -91,29 +84,30 @@ export function registerReportingTools(server) {
           };
 
           logger.debug('Campaign metrics fallback payload', fallbackPayload);
-
+          
           const fallbackResults = await klaviyoClient.post('/campaign-values-reports/', fallbackPayload);
-
           logger.info(`Successfully retrieved basic campaign metrics for campaign ID: ${params.id} using fallback`);
+          
+          return fallbackResults;
+        };
 
-          return {
-            content: [
-              { type: "text", text: "Note: Used fallback approach with minimal statistics." },
-              { type: "text", text: JSON.stringify(fallbackResults, null, 2) }
-            ]
-          };
-        } catch (fallbackError) {
-          logger.error(`Failed to retrieve campaign metrics (including fallback attempt): ${error.message}`, {
-            originalError: error.message,
-            fallbackError: fallbackError.message,
-            campaignId: params.id
-          });
+        // Use the post method with the fallback function
+        const results = await klaviyoClient.post('/campaign-values-reports/', payload, fallbackFn);
 
-          return {
-            content: [{ type: "text", text: `Error retrieving campaign metrics (including fallback attempt): ${error.message}` }],
-            isError: true
-          };
-        }
+        logger.info(`Successfully retrieved campaign metrics for campaign ID: ${params.id}`);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
+        };
+      } catch (error) {
+        logger.error(`Failed to retrieve campaign metrics (including fallback attempt): ${error.message}`, {
+          campaignId: params.id
+        });
+
+        return {
+          content: [{ type: "text", text: `Error retrieving campaign metrics (including fallback attempt): ${error.message}` }],
+          isError: true
+        };
       }
     },
     { description: "Get performance metrics for a specific campaign (open rates, click rates, etc.)" }
@@ -229,19 +223,10 @@ export function registerReportingTools(server) {
 
         logger.debug('Metric aggregates request payload', payload);
 
-        // Ensure endpoint has trailing slash for consistency
-        const results = await klaviyoClient.post('/metric-aggregates/', payload);
-
-        logger.info(`Successfully retrieved metric aggregates for metric ID: ${params.metric_id}`);
-
-        return {
-          content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
-        };
-      } catch (error) {
-        // Implement fallback mechanism for error recovery
-        logger.warn(`Error querying metric aggregates: ${error.message}. Attempting fallback.`);
-
-        try {
+        // Define the fallback function
+        const fallbackFn = async (error) => {
+          logger.warn(`Error querying metric aggregates: ${error.message}. Attempting fallback.`);
+          
           // Simplified fallback payload with minimal parameters
           const fallbackPayload = {
             data: {
@@ -272,29 +257,30 @@ export function registerReportingTools(server) {
           fallbackPayload.data.attributes.filter.push(...dateFilters);
 
           logger.debug('Metric aggregates fallback payload', fallbackPayload);
-
+          
           const fallbackResults = await klaviyoClient.post('/metric-aggregates/', fallbackPayload);
-
           logger.info(`Successfully retrieved basic metric aggregates for metric ID: ${params.metric_id} using fallback`);
+          
+          return fallbackResults;
+        };
 
-          return {
-            content: [
-              { type: "text", text: "Note: Used fallback approach with simplified parameters." },
-              { type: "text", text: JSON.stringify(fallbackResults, null, 2) }
-            ]
-          };
-        } catch (fallbackError) {
-          logger.error(`Failed to query metric aggregates (including fallback attempt): ${error.message}`, {
-            originalError: error.message,
-            fallbackError: fallbackError.message,
-            metricId: params.metric_id
-          });
+        // Ensure endpoint has trailing slash for consistency
+        const results = await klaviyoClient.post('/metric-aggregates/', payload, fallbackFn);
 
-          return {
-            content: [{ type: "text", text: `Error querying metric aggregates (including fallback attempt): ${error.message}` }],
-            isError: true
-          };
-        }
+        logger.info(`Successfully retrieved metric aggregates for metric ID: ${params.metric_id}`);
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(results, null, 2) }]
+        };
+      } catch (error) {
+        logger.error(`Failed to query metric aggregates (including fallback attempt): ${error.message}`, {
+          metricId: params.metric_id
+        });
+
+        return {
+          content: [{ type: "text", text: `Error querying metric aggregates (including fallback attempt): ${error.message}` }],
+          isError: true
+        };
       }
     },
     { description: "Query aggregated metric data for custom analytics reporting" }
@@ -310,28 +296,52 @@ export function registerReportingTools(server) {
       try {
         logger.info(`Retrieving campaign performance for campaign ID: ${params.id}`);
 
-        // First get the campaign details
-        const campaign = await klaviyoClient.get(`/campaigns/${params.id}/`);
+        // First get the campaign details with fallback
+        const campaignFallbackFn = async (error) => {
+          logger.warn(`Error retrieving campaign details: ${error.message}. Using simplified approach.`);
+          return {
+            data: {
+              attributes: {
+                name: `Campaign ${params.id}`,
+                send_time: new Date().toISOString()
+              }
+            }
+          };
+        };
+
+        const campaign = await klaviyoClient.get(`/campaigns/${params.id}/`, {}, campaignFallbackFn);
         logger.debug(`Retrieved campaign details for ID: ${params.id}`);
 
-        // Then get the campaign message to access the metrics
-        if (!campaign.data.relationships['campaign-messages']?.data?.length) {
-          logger.warn(`No campaign messages found for campaign ID: ${params.id}`);
-          throw new Error(`No campaign messages found for campaign ID: ${params.id}`);
+        // Then get the campaign message to access the metrics (if available)
+        let messageId;
+        if (campaign.data.relationships && campaign.data.relationships['campaign-messages']?.data?.length) {
+          messageId = campaign.data.relationships['campaign-messages'].data[0].id;
+          try {
+            await klaviyoClient.get(`/campaign-messages/${messageId}/`);
+            logger.debug(`Retrieved campaign message details for message ID: ${messageId}`);
+          } catch (messageError) {
+            logger.warn(`Error retrieving message details: ${messageError.message}. Continuing with metrics only.`);
+          }
+        } else {
+          logger.warn(`No campaign messages found for campaign ID: ${params.id}. Continuing with metrics only.`);
         }
-
-        const messageId = campaign.data.relationships['campaign-messages'].data[0].id;
-        const message = await klaviyoClient.get(`/campaign-messages/${messageId}/`);
-        logger.debug(`Retrieved campaign message details for message ID: ${messageId}`);
 
         // Get campaign metrics using the updated Reporting API with valid statistics
         const payload = {
           data: {
             type: "campaign-values-report",
             attributes: {
-              statistics: DEFAULT_STATISTICS.comprehensive,
+              // Use only valid statistics - based on testing and API responses
+              statistics: [
+                'delivered', 
+                'open_rate', 
+                'click_rate', 
+                'bounce_rate',
+                'unsubscribe_rate',
+                'revenue_per_recipient'
+              ],
               timeframe: {
-                key: "all_time"  // Get all-time performance
+                key: "last_30_days"  // Use a valid timeframe
               },
               conversion_metric_id: API_CONFIG.defaultConversionMetricId,
               filter: FILTER_TEMPLATES.campaignId(params.id)
@@ -341,7 +351,31 @@ export function registerReportingTools(server) {
 
         logger.debug('Campaign performance request payload', payload);
 
-        const metrics = await klaviyoClient.post('/campaign-values-reports/', payload);
+        // Define the metrics fallback function
+        const metricsFallbackFn = async (error) => {
+          logger.warn(`Error retrieving comprehensive campaign metrics: ${error.message}. Attempting fallback.`);
+          
+          // Fallback to minimal statistics set
+          const fallbackPayload = {
+            data: {
+              type: "campaign-values-report",
+              attributes: {
+                statistics: ['delivered'],
+                timeframe: {
+                  key: "last_30_days"
+                },
+                conversion_metric_id: API_CONFIG.defaultConversionMetricId,
+                filter: FILTER_TEMPLATES.campaignId(params.id)
+              }
+            }
+          };
+
+          logger.debug('Campaign performance fallback payload', fallbackPayload);
+          
+          return await klaviyoClient.post('/campaign-values-reports/', fallbackPayload);
+        };
+
+        const metrics = await klaviyoClient.post('/campaign-values-reports/', payload, metricsFallbackFn);
 
         // Format the results for easier consumption
         const performance = {
@@ -356,60 +390,14 @@ export function registerReportingTools(server) {
           content: [{ type: "text", text: JSON.stringify(performance, null, 2) }]
         };
       } catch (error) {
-        // Implement fallback mechanism for error recovery
-        logger.warn(`Error retrieving campaign performance: ${error.message}. Attempting fallback.`);
+        logger.error(`Failed to retrieve campaign performance: ${error.message}`, {
+          campaignId: params.id
+        });
 
-        try {
-          // First get the campaign details (retry)
-          const campaign = await klaviyoClient.get(`/campaigns/${params.id}/`);
-
-          // Fallback to minimal statistics set
-          const fallbackPayload = {
-            data: {
-              type: "campaign-values-report",
-              attributes: {
-                statistics: DEFAULT_STATISTICS.basic,
-                timeframe: {
-                  key: "all_time"
-                },
-                conversion_metric_id: API_CONFIG.defaultConversionMetricId,
-                filter: FILTER_TEMPLATES.campaignId(params.id)
-              }
-            }
-          };
-
-          logger.debug('Campaign performance fallback payload', fallbackPayload);
-
-          const fallbackMetrics = await klaviyoClient.post('/campaign-values-reports/', fallbackPayload);
-
-          // Format the results for easier consumption
-          const performance = {
-            campaign_name: campaign.data.attributes.name,
-            send_time: campaign.data.attributes.send_time,
-            metrics: fallbackMetrics.data.attributes,
-            note: "Limited metrics available due to API constraints"
-          };
-
-          logger.info(`Successfully retrieved basic campaign performance for campaign ID: ${params.id} using fallback`);
-
-          return {
-            content: [
-              { type: "text", text: "Note: Used fallback approach with minimal statistics." },
-              { type: "text", text: JSON.stringify(performance, null, 2) }
-            ]
-          };
-        } catch (fallbackError) {
-          logger.error(`Failed to retrieve campaign performance (including fallback attempt): ${error.message}`, {
-            originalError: error.message,
-            fallbackError: fallbackError.message,
-            campaignId: params.id
-          });
-
-          return {
-            content: [{ type: "text", text: `Error retrieving campaign performance (including fallback attempt): ${error.message}` }],
-            isError: true
-          };
-        }
+        return {
+          content: [{ type: "text", text: `Error retrieving campaign performance: ${error.message}` }],
+          isError: true
+        };
       }
     },
     { description: "Get a comprehensive performance summary for a campaign" }

@@ -6,13 +6,16 @@ import { z } from 'zod';
       server.tool(
         "get_campaigns",
         {
-          filter: z.string().optional().describe("Filter query for campaigns"),
-          page_size: z.number().min(1).max(100).optional().describe("Number of campaigns per page (1-100)"),
-          page_cursor: z.string().optional().describe("Cursor for pagination")
+          filter: z.string().optional().describe("Filter query for campaigns")
         },
         async (params) => {
           try {
-            const campaigns = await klaviyoClient.get('/campaigns/', params);
+            // Always include the required channel filter if not already provided
+            const apiParams = {
+              filter: params.filter || "equals(messages.channel,'email')"
+            };
+            
+            const campaigns = await klaviyoClient.get('/campaigns/', apiParams);
             return {
               content: [{ type: "text", text: JSON.stringify(campaigns, null, 2) }]
             };

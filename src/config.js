@@ -13,7 +13,7 @@ dotenv.config({ path: './.env' });
 // API Configuration
 export const API_CONFIG = {
   baseURL: 'https://a.klaviyo.com/api',
-  revision: '2024-02-15',
+  revision: '2024-06-15', // Updated to the latest available API revision
   defaultPageSize: 50,
   maxPageSize: 100,
   defaultTimeframe: 'last_30_days',
@@ -58,8 +58,9 @@ export const VALID_CAMPAIGN_STATISTICS = [
   'click_rate',
   'bounce_rate',
   'unsubscribe_rate',
-  'spam_rate',
   'revenue_per_recipient',
+  // Removing statistics that are not supported
+  // 'spam_rate',
 ];
 
 // Default Statistics Sets
@@ -72,7 +73,6 @@ export const DEFAULT_STATISTICS = {
     'click_rate',
     'bounce_rate',
     'unsubscribe_rate',
-    'spam_rate',
     'revenue_per_recipient',
   ],
 };

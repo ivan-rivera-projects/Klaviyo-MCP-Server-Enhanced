@@ -42,10 +42,17 @@ import { z } from 'zod';
         },
         async (params) => {
           try {
+            // Format payload according to the latest API structure
             const payload = {
               data: {
                 type: "event",
-                attributes: params
+                attributes: {
+                  metric: params.metric,
+                  profile: params.profile,
+                  properties: params.properties || {},
+                  time: params.time || new Date().toISOString(),
+                  value: params.value !== undefined ? params.value : 0
+                }
               }
             };
             

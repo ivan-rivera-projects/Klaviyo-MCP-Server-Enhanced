@@ -67,13 +67,17 @@ function isRateLimitError(error) {
  * @param {string} method - HTTP method
  * @param {string} endpoint - API endpoint
  * @param {Object} [requestData] - Request data or params
+ * @param {Function} [fallbackFn] - Optional fallback function to call if all retries fail
  * @returns {Promise} - Promise that resolves with the response data
  */
-async function executeWithRetry(requestFn, method, endpoint, requestData) {
+async function executeWithRetry(requestFn, method, endpoint, requestData, fallbackFn) {
   let retries = 0;
 
+  // For debugging only - don't use directly in API calls
+  const debugData = requestData;
+
   // Check cache first if it's a GET request
-  const cacheKey = method === 'GET' ? `${endpoint}:${JSON.stringify(requestData || {})}` : null;
+  const cacheKey = method === 'GET' ? `${endpoint}` : null;
   if (method === 'GET' && hasCache(cacheKey)) {
     logger.debug(`Cache hit for ${method} ${endpoint}`);
     return getCache(cacheKey);
@@ -81,7 +85,7 @@ async function executeWithRetry(requestFn, method, endpoint, requestData) {
 
   while (true) {
     try {
-      logger.request(method, endpoint, requestData);
+      logger.request(method, endpoint, debugData);
 
       const response = await requestFn();
 
@@ -105,72 +109,91 @@ async function executeWithRetry(requestFn, method, endpoint, requestData) {
       }
 
       logger.apiError(method, endpoint, error);
+      
+      // Try fallback if provided
+      if (fallbackFn) {
+        try {
+          logger.info(`Attempting fallback for ${method} ${endpoint}`);
+          const fallbackResponse = await fallbackFn(error);
+          logger.info(`Fallback successful for ${method} ${endpoint}`);
+          return fallbackResponse;
+        } catch (fallbackError) {
+          logger.error(`Fallback failed for ${method} ${endpoint}`, {
+            originalError: error.message,
+            fallbackError: fallbackError.message
+          });
+          // Continue to throw the original error since fallback also failed
+        }
+      }
+      
       handleError(error);
     }
   }
 }
 
 // Generic request methods
-export async function get(endpoint, params = {}) {
-  const queryParams = new URLSearchParams();
-
+export async function get(endpoint, params = {}, fallbackFn) {
+  // Build the URL with query parameters according to Klaviyo API specs
+  let url = endpoint;
+  const queryParams = [];
+  
+  // Handle filter parameter if provided
   if (params.filter) {
-    queryParams.append('filter', params.filter);
+    queryParams.push(`filter=${encodeURIComponent(params.filter)}`);
   }
-
-  if (params.page_size) {
-    queryParams.append('page[size]', params.page_size);
-  } else if (API_CONFIG.defaultPageSize) {
-    queryParams.append('page[size]', API_CONFIG.defaultPageSize);
-  }
-
-  if (params.page_cursor) {
-    queryParams.append('page[cursor]', params.page_cursor);
-  }
-
+  
+  // Handle include parameter if provided
   if (params.include) {
-    queryParams.append('include', Array.isArray(params.include) ? params.include.join(',') : params.include);
+    queryParams.push(`include=${encodeURIComponent(params.include)}`);
   }
-
-  if (params.fields) {
-    Object.entries(params.fields).forEach(([resource, fields]) => {
-      queryParams.append(`fields[${resource}]`, Array.isArray(fields) ? fields.join(',') : fields);
-    });
+  
+  // Handle page_size parameter if provided
+  if (params.page_size) {
+    queryParams.push(`page[size]=${params.page_size}`);
   }
-
-  if (params.sort) {
-    queryParams.append('sort', params.sort);
+  
+  // Handle pagination cursor if provided
+  if (params.page_cursor) {
+    queryParams.push(`page[cursor]=${params.page_cursor}`);
   }
-
-  const url = queryParams.toString() ? `${endpoint}?${queryParams.toString()}` : endpoint;
-
+  
+  // Add query parameters to URL
+  if (queryParams.length > 0) {
+    url = `${endpoint}?${queryParams.join('&')}`;
+  }
+  
+  logger.debug(`Prepared GET request to: ${url}`);
+  
   return executeWithRetry(
     () => client.get(url),
     'GET',
     endpoint,
-    params
+    params,
+    fallbackFn
   );
 }
 
-export async function post(endpoint, data) {
+export async function post(endpoint, data, fallbackFn) {
   return executeWithRetry(
     () => client.post(endpoint, data),
     'POST',
     endpoint,
-    data
+    data,
+    fallbackFn
   );
 }
 
-export async function patch(endpoint, data) {
+export async function patch(endpoint, data, fallbackFn) {
   return executeWithRetry(
     () => client.patch(endpoint, data),
     'PATCH',
     endpoint,
-    data
+    data,
+    fallbackFn
   );
 }
 
-export async function del(endpoint, data) {
+export async function del(endpoint, data, fallbackFn) {
   return executeWithRetry(
     () => {
       const config = data ? { data } : undefined;
@@ -178,7 +201,8 @@ export async function del(endpoint, data) {
     },
     'DELETE',
     endpoint,
-    data
+    data,
+    fallbackFn
   ).then(response => {
     // For DELETE requests that return 204 No Content
     if (response === undefined) {
@@ -193,14 +217,29 @@ function handleError(error) {
     // The request was made and the server responded with a status code
     // that falls out of the range of 2xx
     const errorData = error.response.data;
-    const errorMessage = errorData.errors ?
-      errorData.errors.map(e => e.detail || e.title).join(', ') :
-      'Unknown API error';
+    
+    // Enhanced error handling for JSON:API format
+    let errorMessage = 'Unknown API error';
+    
+    if (errorData.errors && Array.isArray(errorData.errors)) {
+      errorMessage = errorData.errors.map(e => {
+        // Extract the most detailed error information available
+        const detail = e.detail || e.title || '';
+        const source = e.source?.pointer ? ` (source: ${e.source.pointer})` : '';
+        const code = e.code ? ` [code: ${e.code}]` : '';
+        return `${detail}${source}${code}`;
+      }).join(', ');
+    } else if (errorData.message) {
+      // Fallback for non-standard error formats
+      errorMessage = errorData.message;
+    }
 
-    throw new Error(`Klaviyo API Error (${error.response.status}): ${errorMessage}`);
+    // Include endpoint and status in error message
+    const statusText = error.response.statusText ? ` ${error.response.statusText}` : '';
+    throw new Error(`Klaviyo API Error (${error.response.status}${statusText}): ${errorMessage}`);
   } else if (error.request) {
     // The request was made but no response was received
-    throw new Error('No response received from Klaviyo API');
+    throw new Error('No response received from Klaviyo API. This could indicate network issues or an invalid endpoint.');
   } else {
     // Something happened in setting up the request that triggered an Error
     throw new Error(`Error setting up request: ${error.message}`);
