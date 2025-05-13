@@ -1,12 +1,13 @@
 #!/usr/bin/env node
+import dotenv from 'dotenv';
+
+// Load environment variables first, before any other imports
+dotenv.config({ path: './.env' });
+
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { server } from './server.js';
-import dotenv from 'dotenv';
 import logger from './utils/logger.js';
 import { clearExpiredCache, getCacheStats } from './utils/cache.js';
-
-// Load environment variables
-dotenv.config();
 
 logger.info('Starting Klaviyo MCP server...');
 

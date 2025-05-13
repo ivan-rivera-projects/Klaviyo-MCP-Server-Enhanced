@@ -1,9 +1,14 @@
 /**
  * Centralized configuration for the Klaviyo MCP Server
- * 
+ *
  * This file contains all configurable parameters for the Klaviyo API integration.
  * Centralizing these values makes it easier to update when API changes occur.
  */
+
+// Load environment variables directly if not already loaded
+// This ensures config can be used independently without relying on dotenv being loaded elsewhere
+import dotenv from 'dotenv';
+dotenv.config({ path: './.env' });
 
 // API Configuration
 export const API_CONFIG = {
