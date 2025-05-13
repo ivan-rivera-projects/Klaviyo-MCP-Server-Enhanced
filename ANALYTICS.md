@@ -10,11 +10,13 @@ Klaviyo MCP Server now includes additional tools for retrieving campaign perform
 
 The analytics functionality has been updated to align with the latest Klaviyo API requirements:
 
-1. **Updated API Revision Date**: Now using `2024-02-15` for all API calls
-2. **Corrected Statistics Values**: Updated to use the correct statistics values supported by the API
+1. **Updated API Revision Date**: Now using `2024-06-15` for all API calls
+2. **Corrected Statistics Values**: Updated to use the correct statistics values supported by the API (removed unsupported statistics like `spam_rate`)
 3. **Improved Filter Format**: Updated campaign filter format to use the correct syntax
 4. **Enhanced Error Handling**: Added fallback mechanisms for more robust error recovery
-5. **Added Documentation**: Created comprehensive API reference documentation
+5. **Fixed JSON Parsing Issues**: Resolved JSON parsing warnings in Claude Desktop
+6. **Improved URL Parameter Handling**: Enhanced URL parameter formatting for API requests
+7. **Added Documentation**: Created comprehensive API reference documentation
 
 ### Major Improvements
 
@@ -157,7 +159,7 @@ To use these enhanced analytics features, your Klaviyo API key must have the fol
 
 ## API Version Requirements
 
-The Klaviyo MCP Server uses the Klaviyo API Revision `2024-02-15`. Earlier API versions may not support all features. The specific endpoints and structures are:
+The Klaviyo MCP Server uses the Klaviyo API Revision `2024-06-15`. Earlier API versions may not support all features. The specific endpoints and structures are:
 
 - Campaign metrics: `/campaign-values-reports/` with required fields:
   - `statistics`: Array of valid statistics to retrieve (see below)
@@ -182,17 +184,26 @@ For campaign metrics, use these valid statistics values:
 - `click_rate` - Percentage of delivered emails that were clicked
 - `bounce_rate` - Percentage of sent emails that bounced
 - `unsubscribe_rate` - Percentage of delivered emails that resulted in unsubscribes
-- `spam_rate` - Percentage of delivered emails that were marked as spam
 - `revenue_per_recipient` - Average revenue per recipient
 
-The older statistics values like `unique_opens`, `unique_clicks`, etc. are no longer supported.
+Note: `spam_rate` is no longer supported in the latest API revision. The older statistics values like `unique_opens`, `unique_clicks`, etc. are also no longer supported.
 
 ### Error Handling and Fallbacks
 
-The MCP Server now implements fallback mechanisms for error recovery:
+The MCP Server now implements improved fallback mechanisms for error recovery:
 - For campaign metrics, it falls back to a minimal set of statistics (`delivered`) if the initial request fails
 - For metric aggregates, it falls back to a simplified payload with the `count` measurement and a 7-day timeframe
+- For campaign performance, it provides fallbacks for both campaign details and metrics retrieval
 - All tools provide more detailed error messages to help with troubleshooting
+
+### JSON Parsing Warnings
+
+When using the MCP server with Claude Desktop, you may occasionally see JSON parsing warnings. These are typically related to:
+
+1. The structure of the response data from Klaviyo's API
+2. How Claude processes the JSON responses
+
+These warnings generally don't affect functionality but are documented here for reference. The enhanced error handling in the latest version helps mitigate these issues.
 
 ## Limitations
 
@@ -204,26 +215,21 @@ The MCP Server now implements fallback mechanisms for error recovery:
 
 Potential future improvements (prioritized by impact/effort):
 
-1. **Centralized Configuration** (High impact, Low effort)
-   - Create a central configuration file for API parameters
-   - Make API revision date, valid statistics, and other parameters easily configurable
-   - Prevent inconsistencies across different files when API parameters change
-
-2. **Enhanced Logging** (High impact, Medium effort)
-   - Implement a more robust logging system similar to the test script
-   - Add structured logging for better debugging and monitoring
-   - Include request/response details for troubleshooting
-
-3. **Rate Limiting Handling** (Medium impact, Low effort)
-   - Add retry logic for rate limit errors
-   - Implement exponential backoff for retries
-   - Provide clear feedback when rate limits are encountered
-
-4. **Additional Analytics Features**
+1. **Additional Analytics Features** (High impact, Medium effort)
    - Support for flow analytics
    - A/B testing result analysis
    - Predictive analytics integration
    - Custom dashboard data preparation
+
+2. **Performance Optimization** (Medium impact, Low effort)
+   - Further optimize caching strategies
+   - Implement batch processing for large data sets
+   - Add compression for large responses
+
+3. **Enhanced User Interface** (Medium impact, High effort)
+   - Create a web dashboard for analytics visualization
+   - Add interactive charts and graphs
+   - Implement custom report generation
 
 ## Contributors
 

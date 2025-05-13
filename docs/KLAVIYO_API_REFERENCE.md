@@ -4,7 +4,7 @@ This document provides reference information for working with the Klaviyo API in
 
 ## API Version
 
-The current API revision date used in this project is `2024-02-15`. This is set in the `klaviyo-client.js` file.
+The current API revision date used in this project is `2024-06-15`. This is set in the `config.js` file.
 
 ## Campaign Values Reports
 
@@ -17,8 +17,9 @@ When retrieving campaign metrics using the `/campaign-values-reports/` endpoint,
 - `click_rate` - Percentage of delivered emails that were clicked
 - `bounce_rate` - Percentage of sent emails that bounced
 - `unsubscribe_rate` - Percentage of delivered emails that resulted in unsubscribes
-- `spam_rate` - Percentage of delivered emails that were marked as spam
 - `revenue_per_recipient` - Average revenue per recipient
+
+Note: `spam_rate` is no longer supported in the latest API revision.
 
 ### Filter Format
 
@@ -80,10 +81,20 @@ The following measurements are valid for metric aggregates:
 
 ## Error Handling
 
-The MCP Server implements fallback mechanisms for error recovery:
+The MCP Server implements improved fallback mechanisms for error recovery:
 
 1. For campaign metrics, it falls back to a minimal set of statistics (`delivered`) if the initial request fails.
 2. For metric aggregates, it falls back to a simplified payload with the `count` measurement and a 7-day timeframe.
+3. For campaign performance, it provides fallbacks for both campaign details and metrics retrieval.
+
+### JSON Parsing Warnings
+
+When using the MCP server with Claude Desktop, you may occasionally see JSON parsing warnings. These are typically related to:
+
+1. The structure of the response data from Klaviyo's API
+2. How Claude processes the JSON responses
+
+These warnings generally don't affect functionality but are documented here for reference. The enhanced error handling in the latest version helps mitigate these issues.
 
 ## API Endpoints Reference
 
