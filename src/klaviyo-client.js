@@ -137,6 +137,12 @@ export async function get(endpoint, params = {}, fallbackFn) {
   let url = endpoint;
   const queryParams = [];
   
+  // Special handling for campaign endpoint - add required filter if missing
+  if (endpoint === '/campaigns/' && !params.filter) {
+    logger.debug('Adding default email filter for campaigns endpoint');
+    params.filter = "equals(messages.channel,'email')";
+  }
+  
   // Handle filter parameter if provided
   if (params.filter) {
     queryParams.push(`filter=${encodeURIComponent(params.filter)}`);
