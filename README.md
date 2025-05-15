@@ -1,5 +1,6 @@
 # Klaviyo MCP Server Enhanced
 
+[![smithery badge](https://smithery.ai/badge/@ivan-rivera-projects/Klaviyo-MCP-Server-Enhanced)](https://smithery.ai/server/@ivan-rivera-projects/Klaviyo-MCP-Server-Enhanced)
 ![Klaviyo + MCP](https://img.shields.io/badge/Klaviyo-MCP-blue)
 ![API Version](https://img.shields.io/badge/API%20Version-2024--06--15-green)
 ![Node.js](https://img.shields.io/badge/Node.js-v18%2B-brightgreen)
@@ -74,6 +75,14 @@ This project is an enhanced version of the [original Klaviyo MCP Server](https:/
 - Node.js v18 or higher
 - A Klaviyo account with API access
 - A private API key with appropriate scopes (campaigns:read, metrics:read, etc.)
+
+### Installing via Smithery
+
+To install Klaviyo Enhanced Analytics Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@ivan-rivera-projects/Klaviyo-MCP-Server-Enhanced):
+
+```bash
+npx -y @smithery/cli install @ivan-rivera-projects/Klaviyo-MCP-Server-Enhanced --client claude
+```
 
 ### Installation
 
