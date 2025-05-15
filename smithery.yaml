@@ -1,0 +1,50 @@
+# Smithery configuration file: https://smithery.ai/docs/build/project-config
+
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - klaviyoApiKey
+    properties:
+      klaviyoApiKey:
+        type: string
+        default: ""
+        description: Your Klaviyo private API key
+      logLevel:
+        type: string
+        default: info
+        description: Logging level (debug, info, warn, error)
+      logFile:
+        type: string
+        default: /tmp/klaviyo-mcp.log
+        description: Path to log file
+      logResponses:
+        type: boolean
+        default: false
+        description: Whether to log full API responses
+      nodeEnv:
+        type: string
+        default: production
+        description: Node environment
+  commandFunction:
+    # A JS function that produces the CLI command based on the given config to start the MCP on stdio.
+    |-
+    (config) => ({
+      command: 'node',
+      args: ['src/index.js'],
+      env: {
+        KLAVIYO_API_KEY: config.klaviyoApiKey,
+        LOG_LEVEL: config.logLevel,
+        LOG_FILE: config.logFile,
+        LOG_RESPONSES: config.logResponses.toString(),
+        NODE_ENV: config.nodeEnv
+      }
+    })
+  exampleConfig:
+    klaviyoApiKey: YOUR_KLAVIYO_PRIVATE_API_KEY
+    logLevel: info
+    logFile: /tmp/klaviyo-mcp.log
+    logResponses: false
+    nodeEnv: production
