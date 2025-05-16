@@ -4,13 +4,16 @@ import dotenv from 'dotenv';
 // Load environment variables first, before any other imports
 dotenv.config({ path: './.env' });
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+// Import our enhanced transport instead of the original
+import { StdioServerTransport, isErrorSuppressionActive } from './pre-init-error-suppressor.js';
 import { server } from './server.js';
 import logger from './utils/logger.js';
 import { clearExpiredCache, getCacheStats } from './utils/cache.js';
-import { patchMcpTransport } from './utils/mcp-error-handler.js';
+// Import our enhanced error handling
+import { initErrorHandling } from './features/error_handling/index.js';
 
 logger.info('Starting Klaviyo MCP server...');
+logger.info(`Pre-initialization error suppression: ${isErrorSuppressionActive() ? 'ACTIVE' : 'INACTIVE'}`);
 
 // Set up periodic cache stats logging
 setInterval(() => {
@@ -22,8 +25,8 @@ setInterval(() => {
 try {
   const transport = new StdioServerTransport();
   
-  // Patch the transport with enhanced error handling
-  patchMcpTransport(transport);
+  // Use our enhanced error handling for runtime
+  initErrorHandling(server, transport);
   
   await server.connect(transport);
   logger.info('Klaviyo MCP server connected and ready');

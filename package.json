@@ -10,7 +10,9 @@
       "scripts": {
         "start": "node src/index.js",
         "dev": "node --watch src/index.js",
-        "inspect": "npx -y @modelcontextprotocol/inspector node src/index.js"
+        "inspect": "npx -y @modelcontextprotocol/inspector node src/index.js",
+        "test:error-handling": "node test-json-error-handling.js",
+        "start:quiet": "node start-klaviyo-mcp.js"
       },
       "dependencies": {
         "@modelcontextprotocol/sdk": "^1.0.0",

@@ -58,7 +58,10 @@ This enhanced version adds powerful analytics capabilities that weren't availabl
 - Comprehensive error handling for all API interactions
 - Fallback mechanisms for degraded operation when primary requests fail
 - Detailed error messages and troubleshooting information
-- JSON parsing error prevention and handling
+- Advanced JSON parsing error prevention and handling
+- Intelligent buffer management to recover from corrupted messages
+- Automatic sanitization of malformed JSON inputs
+- Suppression of error popups for better user experience
 
 ## 🔄 API Version
 
@@ -75,6 +78,20 @@ This project is an enhanced version of the [original Klaviyo MCP Server](https:/
 - Node.js v18 or higher
 - A Klaviyo account with API access
 - A private API key with appropriate scopes (campaigns:read, metrics:read, etc.)
+
+### ⚠️ Important Note About Startup Warnings
+
+**When you first start Claude Desktop with this MCP tool, you will see several JSON parsing error notifications appear. This is normal and expected behavior.**
+
+These warnings occur during the initial connection phase between Claude and the MCP server and do not affect the functionality of the tool. Once Claude is fully initialized, these warnings will stop appearing, and the tool will work normally.
+
+Key points to remember:
+- These warnings are harmless and can be safely dismissed
+- They only appear during startup and not during normal operation
+- The MCP server is still functioning correctly despite these warnings
+- All analytics and API features will work as expected
+
+For more technical details about these warnings, see [STARTUP_ERROR_SUPPRESSION.md](docs/STARTUP_ERROR_SUPPRESSION.md).
 
 ### Installing via Smithery
 
@@ -262,7 +279,7 @@ get_campaign_performance({
 - The Klaviyo API may impose rate limits on reporting endpoints
 - Some metrics may have a delay before they are available in the API
 - Historical data availability may be limited based on your Klaviyo plan
-- When using with Claude Desktop, you may occasionally see JSON parsing warnings that don't affect functionality
+- When starting Claude Desktop, you will see JSON parsing warnings. These are expected and don't affect functionality (see "Important Note About Startup Warnings" section above)
 
 ## 📝 License
 
