@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/ivan-rivera-projects-klaviyo-mcp-server-enhanced-badge.png)](https://mseep.ai/app/ivan-rivera-projects-klaviyo-mcp-server-enhanced)
+
 # Klaviyo MCP Server Enhanced
 
 [![smithery badge](https://smithery.ai/badge/@ivan-rivera-projects/Klaviyo-MCP-Server-Enhanced)](https://smithery.ai/server/@ivan-rivera-projects/Klaviyo-MCP-Server-Enhanced)
